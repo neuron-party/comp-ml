@@ -23,9 +23,8 @@ class PPO:
         self.epochs = params['epochs']
         self.batch_size = params['batch_size']
         self.num_batches = params['num_batches']
-        self.num_envs = params['num_envs']
-        self.c1 = 0.5
-        self.c2 = 0.01
+        self.c1 = params['c1']
+        self.c2 = params['c2']
         
         # changing here but make a parameter in the future
         self.policy = ImpalaCNN(observation_space, action_space).to(self.device)
