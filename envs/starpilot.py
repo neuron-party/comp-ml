@@ -82,7 +82,7 @@ def main(): # parse a config file for parameters
             sum_reward += reward
             total_steps += 1
             
-            if done:
+            if done.all():
                 break
         
         eps += 1
