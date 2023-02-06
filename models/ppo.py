@@ -1,12 +1,23 @@
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
 class PPO4:
-    def __init__(self, model, **params):
+    def __init__(self, observation_space, action_space, model, **params):
         self.observation_space = observation_space
         self.action_space = action_space
         
         self.gamma = params['gamma']
+        self.lambd = params['lambd']
         self.lr = params['lr']
         self.epsilon = params['epsilon']
         self.vf_clip = params['vf_clip']
+        self.max_grad_norm = params['max_grad_norm']
+        self.norm_adv = params['norm_adv']
+        self.c1 = params['c1']
+        self.c2 = params['c2']
         
         self.device = params['device']
         self.model = model.to(self.device)
@@ -33,7 +44,7 @@ class PPO4:
             action = pi.sample()
             log_probs = pi.log_prob(action)
             
-        return action.detach().cpu().numpy(), log_probs.detach().cpu().numpy(), value.detach().cpu().numpy()
+        return action.detach().cpu().numpy(), log_probs.detach().cpu().numpy(), value.reshape(-1, ).detach().cpu().numpy()
             
     def remember(self, state, action, reward, done, log_probs, value_estimates, i):
         self.states[i] = torch.tensor(state, dtype=torch.float32, device=self.device)
@@ -47,18 +58,21 @@ class PPO4:
         with torch.no_grad():
             next_state = torch.tensor(next_state, dtype=torch.float32, device=self.device)
             _, next_value = self.model(next_state)
+            next_value = next_value.reshape(-1, )
             bootstrapped_advantage = 0
             self.advantages = torch.zeros_like(self.rewards).to(self.device)
             
             for i in reversed(range(self.num_steps)):
                 next_values = next_value if i == self.num_steps - 1 else self.value_estimates[i + 1]
-                deltas = self.rewards[i] + self.gamma * self.dones[i] * next_values - self.value_estimates[i]
-                self.advantages[i] = bootstrapped_advantage = deltas + self.gamma * self.lambd * self.dones[i] * bootstrapped_advantage
+                deltas = self.rewards[i] + self.gamma * (1 - self.dones[i]) * next_values - self.value_estimates[i]
+                self.advantages[i] = bootstrapped_advantage = deltas + self.gamma * self.lambd * (1 - self.dones[i]) * bootstrapped_advantage
                 
             self.value_targets = self.advantages + self.value_estimates
             assert self.value_targets.shape == self.value_estimates.shape == self.advantages.shape
             
-    def learn(self):
+    def learn(self, next_state):
+        self._make_dataset(next_state)
+        
         states = self.states.flatten(start_dim=0, end_dim=1)
         actions = self.actions.flatten(start_dim=0, end_dim=1)
         old_log_probs = self.log_probs.flatten(start_dim=0, end_dim=1)
@@ -69,7 +83,7 @@ class PPO4:
         indices = np.arange(self.num_envs * self.num_steps)
         for i in range(self.num_epochs):
             np.random.shuffle(indices)
-            minibatch_indices = np.split(indices, self.num_batches):
+            minibatch_indices = np.split(indices, self.num_batches)
             for minibatch_idx in minibatch_indices:
                 s = states[minibatch_idx]
                 a = actions[minibatch_idx]
@@ -78,13 +92,18 @@ class PPO4:
                 adv = advantages[minibatch_idx]
                 vt = value_targets[minibatch_idx]
                 
+                if self.norm_adv:
+                    adv = (adv - adv.mean()) / (adv.std() + 1e-8)
+                
                 pi, value = self.model(s)
+                value = value.reshape(-1, )
                 log_probs = pi.log_prob(a)
                 entropies = pi.entropy()
                 
                 loss = self._compute_loss(log_probs, olp, value, ove, vt, adv, entropies)
                 self.optimizer.zero_grad()
                 loss.backward()
+                nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
                 self.optimizer.step()
                 
                 self.num_updates += 1
