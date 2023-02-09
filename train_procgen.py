@@ -30,6 +30,7 @@ def parse_args():
     parser.add_argument('--c1', type=float, default=0.5)
     parser.add_argument('--c2', type=float, default=0.01)
     parser.add_argument('--max-grad-norm', type=float, default=0.5)
+    parser.add_argument('--norm-adv', type=bool, default=True)
     
     # env args
     parser.add_argument('--env-name', type=str, default='jumper')
@@ -78,7 +79,7 @@ def main(args):
     params = {
         'gamma': args.gamma, 'lr': args.lr, 'epsilon': args.epsilon, 'vf_clip': args.vf_clip, 'device': device, 'num_steps': args.num_steps,
         'num_epochs': args.num_epochs, 'num_batches': args.num_batches, 'num_envs': args.num_envs, 'lambd': args.lambd, 
-        'c1': args.c1, 'c2': args.c2, 'max_grad_norm': args.max_grad_norm
+        'c1': args.c1, 'c2': args.c2, 'max_grad_norm': args.max_grad_norm, 'norm_adv': args.norm_adv
     }
     
     agent = PPO4(env.single_observation_space.shape, env.single_action_space, model, **params)
@@ -91,14 +92,13 @@ def main(args):
     while total_global_steps < max_global_steps:
         for i in range(args.num_steps):
             action, log_probs, value_estimate = agent.get_action(state)
-            next_state, reward, done, info = envs.step(action)
+            next_state, reward, done, info = env.step(action)
             agent.remember(state, action, reward, done, log_probs, value_estimate, i)
             state = next_state
             total_global_steps += args.num_envs
             for item in info:
                 if 'episode' in item.keys():
-                    episodic_returns.append(item['episode']['r'])
-                    writer.add_scalar('charts/episodic_return', item['episode']['r'], total_steps)
+                    writer.add_scalar('charts/episodic_return', item['episode']['r'], total_global_steps)
         agent.learn(state)
         
         # saving
