@@ -9,3 +9,5 @@
 
 ### same agent vs relay failure rates
 ![same agent vs relay failures](docs/relay_metrics.png)
+![training env returns](docs/train_returns.png)
+![testing env returns](docs/test_returns.png)
