@@ -158,6 +158,9 @@ class STA: # revamped for vectorized envs
             Iterate through the Nc sampled checkpoints as usual, but bundle all the valid candidates among the is_qualified states
             as a new checkpoint. If there is more than one valid candidate in the same env, then apply the Q-value evaluation to choose
             as usual in the unvectorized case.
+            
+            ! However, this creates an entirely new checkpoint and makes the logic for the old_id and updating future returns much more 
+            complicated
         '''
         valid_candidates = []
         
