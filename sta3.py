@@ -1,9 +1,9 @@
 class STA: # revamped for vectorized envs
     def __init__(self):
         '''
-        self.checkpoints: 
-            each entry is a dictionary with cdata, state, and future_ret
-                state and rewards are arrays of shape [num_envs, observation_space] and [num_envs, 1] respectively
+        self.vectorized_checkpoints: list of num_envs lists
+            * each inner list contains checkpoints (qualified states for STA) for that respective environment 
+            * each checkpoint is a list of format [cdata, state (np.array), future_return]
                 
         For self.vectorized_checkpoints
             * the first index should access the corresponding env 
@@ -65,63 +65,35 @@ class STA: # revamped for vectorized envs
                 if not termination: 
                     usable_states[index].append(timestep)
         
-        indices = [random.sample(i, 1000 / 5) for i in usable_states] # random indices for each env in the vectorized envs; ill change the sample number later cuz i need to write some logic for timesteps
-        
-        
-        
-        
-        
-        
-        usable_states = len(trajectory) - self.future_steps_num - 12 
-        if usable_states > 0:
-            indices = random.sample(
-                list(range(10, len(trajectory) - self.future_steps_num - 1)),
-                int(len(trajectory) / self.future_steps_num)
-            )
-            count = 0
-            for idx in indices:
-                future_return = accumulated_rewards[idx + self.future_steps_num + 1, :] - accumulated_rewards[idx + 1, :] # [num_envs, ]
-                average_future_return = future_return / self.future_steps_num # [num_envs, ]
+        sampled_usable_indices = [random.sample(i, 5) for i in usable_states] # random indices for each env in the vectorized envs; ill change the sample number later cuz i need to write some logic for timesteps
+        for env_index, indices in enumerate(sampled_usable_indices): # list of indices
+            for timestep in indices: # iterating through single index at a time
+                future_return = trajectory[timestep + 50][2][env_index] - trajectory[timestep][2][env_index]
+                average_future_return = future_return / self.future_steps_num
                 
-                is_qualified_mask = np.logical_and(
-                    average_future_return > threshold,
-                    average_future_return > self.best_threshold
-                ) # [num_envs, ]
-                
-                assert len(is_qualified_mask) == len(self.vectorized_checkpoints)
-                
-                if is_qualified_mask.any(): # if there are any envs with qualified states, we proceed with the loop
-                    for index, qualified in enumerate(is_qualified_mask):
-                        # looping through each env in the vectorized env, and updating its respective checkpoint list if there are
-                        # qualified states
-                        
-                        # trajectories[idx]: list of [vectorized_cdata, vectorized_states, vectorized_rewards]
-                        # trajectories[idx][0]: vectorized_cdata with length num_envs
-                        # trajectories[idx][1]: vectorized_states with shape [num_envs, observation_shape]
-                        # trajectories[idx][2]: vectorized_rewards with shape [num_envs, ]
-                        if qualified:
-                            checkpoint = [
-                                    trajectories[idx][0][index], # single cdata entry - might need to turn back into a list later
-                                    trajectories[idx][1][index], # single state of shape [observation_shape]
-                                    future_return[index]
-                                ]
+                if average_future_return > threshold[env_index] and average_future_return > self.best_threshold[env_index]:
+                    checkpoint = [
+                            trajectories[timestep][0][env_index], # single cdata entry - might need to turn back into a list later
+                            trajectories[timestep][1][env_index], # single state of shape [observation_shape]
+                            future_return
+                        ]
                             
-                            if len(self.vectorized_checkpoints[index]) < 20:
-                                self.vectorized_checkpoints[index].append(checkpoint)
-                            else:
-                                checkpoint_indices = random.sample(list(range(len(self.vectorized_checkpoints[index]))), 10)
-                                lowest_checkpoint_index = checkpoint_indices.pop(0)
-                                lowest_future_return = self.vectorized_checkpoints[index][lowest_checkpoint_index][2]
-                                
-                                for checkpoint_index in checkpoint_indices:
-                                    if self.vectorized_checkpoints[index][checkpoint_index][2] < lowest_future_return:
-                                        lowest_future_return = self.vectorized_checkpoints[index][checkpoint_index][2]
-                                        lowest_checkpoint_index = checkpoint_index
-                                
-                                if self.vectorized_checkpoints[index][lowest_checkpoint_index][2] >= self.best_threshold[index]:
-                                    self.vectorized_checkpoints[index].append(checkpoint)
-                                else:
-                                    self.vectorized_checkpoints[index] = checkpoint
+                    if len(self.vectorized_checkpoints[env_index]) < 20:
+                        self.vectorized_checkpoints[env_index].append(checkpoint)
+                    else:
+                        checkpoint_indices = random.sample(list(range(len(self.vectorized_checkpoints[env_index]))), 10)
+                        lowest_checkpoint_index = checkpoint_indices.pop(0)
+                        lowest_future_return = self.vectorized_checkpoints[env_index][lowest_checkpoint_index][2]
+
+                        for checkpoint_index in checkpoint_indices:
+                            if self.vectorized_checkpoints[env_index][checkpoint_index][2] < lowest_future_return:
+                                lowest_future_return = self.vectorized_checkpoints[env_index][checkpoint_index][2]
+                                lowest_checkpoint_index = checkpoint_index
+
+                        if self.vectorized_checkpoints[env_index][lowest_checkpoint_index][2] >= self.best_threshold[env_index]:
+                            self.vectorized_checkpoints[env_index].append(checkpoint)
+                        else:
+                            self.vectorized_checkpoints[env_index] = checkpoint
                                     
         # total_return and average_return are used for setting the threshold
         # accumulated_rewards (and thus future_return and average_future_return) are whats used for the is_qualified check; these don't require a complete episode
@@ -141,13 +113,6 @@ class STA: # revamped for vectorized envs
                         self.average_returns[index][average_returns_current_idx] = single_env_average_return
                         self.average_returns_current_idx[index] += 1
                         self.average_returns_current_idx[index] = self.average_returns_current_idx[index] % len(self.average_returns[index])
-        
-        # for index, single_env_average_return in enumerate(average_return):
-        #     if single_env_average_return > 1:
-        #         average_returns_current_idx = self.average_returns_current_idx[index]
-        #         self.average_returns[index][average_returns_current_index] = single_env_average_return
-        #         self.average_returns_current_index[index] += 1
-        #         self.average_returns_current_index[index] = self.average_returns_current_idx[index] % len(self.average_returns[index])
         
         
     def select_state(self):
