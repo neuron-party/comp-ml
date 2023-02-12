@@ -1,14 +1,19 @@
+import random
+import numpy as np
+
+
 class STA: # revamped for vectorized envs
     def __init__(self):
         '''
         self.vectorized_checkpoints: list of num_envs lists
             * each inner list contains checkpoints (qualified states for STA) for that respective environment 
-            * each checkpoint is a list of format [cdata, state (np.array), future_return]
+            * each checkpoint is a list of format [cdata, state (np.array), future_return, old_return]
                 
         For self.vectorized_checkpoints
             * the first index should access the corresponding env 
             * the second index corresponds to the checkpoint
         '''
+        # update_set parameters
         self.num_envs = num_envs
         self.sample_num = sample_num
         self.future_steps_num = future_steps_num
@@ -17,10 +22,13 @@ class STA: # revamped for vectorized envs
         self.average_returns_current_idx = np.zeros((num_envs, )) # [num_envs, ]
         self.vectorized_checkpoints = [[] for i in range(self.num_envs)] # [[],...,[]] num_envs times
         
+        # sample_set parameters
+        self.nc = nc # 3
+        
         
     def update_set(self, trajectory, old_id):
         '''
-        Randomly sample a set of states fred7e01c243713c3778c36e946f2ea3cdd9b6d349a6bd3ff9om a trajectory generated during training and add valid states to the STA set
+        Randomly sample a set of states a trajectory generated during training and add valid states to the STA set
         
         valid states meet the following criteria:
             * controllable; i.e the next 50 steps have a reward greater than some threshold
@@ -35,15 +43,6 @@ class STA: # revamped for vectorized envs
             i.e each trajectory entry will be [vectorized_cdata, vectorized_state, vectorized_accumulated_reward, vectorized_done, vectorized_episode_length] 
             where the dones signify a terminal state
         '''
-        
-        # this doesnt work rn
-#         rewards = [i[2] for i in trajectory] # [[num_envs, ],...,[num_envs, ]] 256 times (for PPO)
-#         accumulated_rewards = [np.zeros((self.num_envs, ))] + list(itertools.accumulate(rewards)) # [[num_envs, ],...,[num_envs, ]] 257 times
-#         accumulated_rewards = np.array(accumulated_rewards) # [256, num_envs] 
-#         total_return = accumulated_rewards[-1] # [num_envs, ]
-        
-#         # !!! figure out a way to update the future_ret with old_id and stuff
-#         average_return = total_return / len(rewards) # [num_envs, ]
         
         for row in self.average_returns:
             row.sort()
@@ -65,6 +64,17 @@ class STA: # revamped for vectorized envs
                 if not termination: 
                     usable_states[index].append(timestep)
         
+        
+        old_returns = np.zeros((self.num_envs, ))
+        for env_index, old_id in enumerate(old_ids):
+            if old_id >= 0 and usable_states[env_index][0] == 0: # make sure the starting state of this trajectory is still controllable, i.e replay of this state doesn't terminate after 50 steps
+                old_return = self.checkpoints[env_index][old_id][3]
+                new_future_return = trajectory[50][2][env_index] 
+                if self.checkpoints[env_index][old_id][2] < new_future_return:
+                    self.checkpoints[env_index][old_id][2] = new_future_return
+                old_returns[env_index] = old_return
+        
+        
         sampled_usable_indices = [random.sample(i, 5) for i in usable_states] # random indices for each env in the vectorized envs; ill change the sample number later cuz i need to write some logic for timesteps
         for env_index, indices in enumerate(sampled_usable_indices): # list of indices
             for timestep in indices: # iterating through single index at a time
@@ -75,13 +85,14 @@ class STA: # revamped for vectorized envs
                     checkpoint = [
                             trajectories[timestep][0][env_index], # single cdata entry - might need to turn back into a list later
                             trajectories[timestep][1][env_index], # single state of shape [observation_shape]
-                            future_return
+                            future_return,
+                            old_returns[env_index]
                         ]
                             
                     if len(self.vectorized_checkpoints[env_index]) < 20:
                         self.vectorized_checkpoints[env_index].append(checkpoint)
                     else:
-                        checkpoint_indices = random.sample(list(range(len(self.vectorized_checkpoints[env_index]))), 10)
+                        checkpoint_indices = random.sample(list (range(len(self.vectorized_checkpoints[env_index]))), 10)
                         lowest_checkpoint_index = checkpoint_indices.pop(0)
                         lowest_future_return = self.vectorized_checkpoints[env_index][lowest_checkpoint_index][2]
 
@@ -115,7 +126,7 @@ class STA: # revamped for vectorized envs
                         self.average_returns_current_idx[index] = self.average_returns_current_idx[index] % len(self.average_returns[index])
         
         
-    def select_state(self):
+    def select_state_indices(self, agent):
         '''
         Randomly sample sample_num checkpoints. If any of these checkpoints has an average future return greater than the current
         highest average future return, return it as the initial state for the next trajectory.
@@ -133,18 +144,34 @@ class STA: # revamped for vectorized envs
             as a new checkpoint. If there is more than one valid candidate in the same env, then apply the Q-value evaluation to choose
             as usual in the unvectorized case.
         '''
-        valid_candidates = []
+        valid_candidates = np.ones((self.num_envs, )) * -1
+        q_value_matrix = np.empty((self.num_envs, ))
         
-        for i in range(self.sample_num):
-            random_idx = random.randint(0, len(self.checkpoints) - 1)
-            score = agent.model(self.checkpoints[random_idx]['state'])
-            mask = self.checkpoints[random_idx]['is_qualified_mask']
-            avg_future_ret = self.checkpoints[random_idx]['future_ret'][mask] / self.future_steps_num
+        for i in range(self.nc):
+            vectorized_candidate_indices = np.ones((self.num_envs, )) * -1
+            temp_q_value_matrix = np.zeros((self.num_envs, ))
             
-            if avg_future_ret > best_threshold:
-                valid_candidates.append([self.checkpoints[random_idx], score])
-        
-        if valid_candidates: # select the one with the lowest score
-            return sorted(valid_candidates, key=lambda x: x[1])[0][0]
-        
-        return None # no valid candidates
+            for env_index in range(self.num_envs):
+                random_idx = random.randint(0, len(self.checkpoints[env_index]) - 1)
+                with torch.no_grad():
+                    state = self.checkpoints[env_index][random_idx][1]
+                    _, q_value = agent.model(state)
+                avg_future_return = self.checkpoints[env_index][random_idx][2] / self.future_steps_num
+                if avg_future_return > self.best_threshold[env_index]:
+                    vectorized_candidate_indices[env_index] = random_idx
+                    temp_q_value_matrix[env_index] = q_value
+                    
+            replacement_mask = np.logical_and(valid_candidates != -1, valid_candidate_indices != -1) # if some envs have more than 1 valid candidate, we choose using the lower q value
+            if replacement_mask.any():
+                replacement_mask_2 = q_value_matrix[replacement_mask] > temp_q_value_matrix[replacement_mask]
+                valid_candidates[replacement_mask][replacement_mask_2] = valid_candidate_indices[replacement_mask][replacement_mask_2]
+                
+            q_value_matrix = temp_q_value_matrix
+            
+            # at this point we've already counted for all the overlaps, so now we just add the rest of the new indices in
+            no_overlap_mask = valid_candidates == -1
+            remaining_indices_mask = vectorized_candidate_indices[no_overlap_mask] != -1
+            valid_candidates[no_overlap_mask][remaining_indices_mask] == vectorized_candidate_indices[no_overlap_mask][remaining_indices_mask]
+            
+        # for actually resetting the states, if an index element == -1, just keep the current state dynamics, if != -1, then we change to augment
+        return valid_candidates
