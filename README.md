@@ -9,6 +9,9 @@
 * ppo_jumper_sta_2_final.pth # ppo agent trained for 200 million steps using upper bound STA
 * ppo_jumper_sta3_2_final.pth # ppo agent trained for 200 million steps using more controllabe states and unbounded STA
 
+* nohup50.out is same agent failure rates on jumper with the redfined successes/failures
+* nohup51.out is the relay failure rates for jumper with the redefined successes/failures
+
 ### same agent vs relay failure rates
 ![same agent vs relay failures](docs/relay_metrics.png)
 ![training env returns](docs/train_test_returns_new.png)

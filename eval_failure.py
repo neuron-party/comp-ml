@@ -63,11 +63,13 @@ def main(args):
             t = 0
             state = env.reset()
             done = verbose = tracked = valid_trajectory = False
-
+            sum_reward = 0
+            
             while not done:
                 action, _, _ = agent.get_action(state)
                 next_state, reward, done, info = env.step(action)
                 state = next_state
+                sum_reward += reward
 
                 t += 1
                 if t > 400:
@@ -76,9 +78,12 @@ def main(args):
                     failures.append(0)
                     tracked = True
 
-            if t < 500 and valid_trajectory:
+            if t < 500 and valid_trajectory and sum_reward == 0:
                 valid_trajectory = False
                 failures.append(1)
+                
+            elif t < 500 and valid_trajectory and sum_reward == 10:
+                failures.append(0)
 
             if verbose:
                 print(f'Iteration: {i - 1}, Epochs: {len(failures)}, Time Step: {t}, Outcome: {failures[-1]}, Failure Rate: {sum(failures) / len(failures)}')
