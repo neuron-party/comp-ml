@@ -85,6 +85,8 @@ def main(args):
                     if t > 400:
                         verbose = valid_trajectory = True
                         agent.model.load_state_dict(relay_agent['model'])
+                        # reloading the state dict a lot, maybe add one more if condition i.e loaded or something
+                        
                     if t >= 500 and valid_trajectory and not tracked:
                         failures.append(0)
                         tracked = True
