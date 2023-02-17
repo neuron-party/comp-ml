@@ -17,6 +17,9 @@
 
 * returns of 200m STA and STA3 are being evaluated on valla, need to reevaluate returns for regular jumper agents as well for 1000 steps instead of 100 for more accurate metrics
 
+### sta metrics:
+![sta vs regular relay failures](docs/sta_vs_regular_relay_jumper.png)
+
 ### same agent vs relay failure rates
 ![same agent vs relay failures](docs/relay_metrics.png)
 ![training env returns](docs/train_test_returns_new.png)
