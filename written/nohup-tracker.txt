@@ -1,0 +1,19 @@
+# this file contains information regarding what each nohup file contains on the VM
+
+- nohup.out: relay failure/generalization for ppo jumper agents (1 - 4)
+- nohup2.out: same agent failure/generalization for ppo jumper agents (1 - 4)
+- nohup3.out: relay failure/generalization for ppo heist agents (1 - 4)
+- nohup4.out: same agent failure/generalization for ppo jumper agents (1 - 4)
+
+- nohup50.out: same agent failure/generalization with redefined successes/failures for ppo jumper agents (reevaluation of nohup2.out)
+- nohup51.out: relay failure/generalization with redefined successes/failures for ppo jumper agents (reevaluation of nohup.out)
+
+- nohup100.out: same agent failure/generalization for STA ppo jumper agents
+- nohup101.out: same agent failure/generalization for STA3 ppo jumper agents
+- nohup200.out: relay failure/generalization for for STA ppo jumper agents
+- nohup201.out: relay failure/generalization for STA3 ppo jumper agents
+
+- nohup600.out: sta training loop outputs for ppo_starpilot_sta_1
+- nohup601.out: sta training loop outputs for ppo_starpilot_sta_2
+- nohup602.out: sta training loop outputs for ppo_starpilot_sta_3
+- nohup603.out: sta training loop outputs for ppo_starpilot_sta_4
