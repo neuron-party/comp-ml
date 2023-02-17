@@ -1,12 +1,12 @@
 # computational machine learning lab
 
 ## how to run
-`eval_failure_sta.py`: same agent failure rate evaluation for STA agents
-`eval_failure.py`: same agent failure rate evaluation for regular agents
-`eval_relay_sta.py`: relay failure rate evaluation for STA agents
-`eval_relay.py`: relay failure rate evaluation for regular agents
-`train_procgen.py`: training script for regular PPO agents on procgen environments
-`train_sta.py`: training script for STA PPO agents on procgen environments
+`eval_failure_sta.py`: same agent failure rate evaluation for STA agents <br>
+`eval_failure.py`: same agent failure rate evaluation for regular agents <br>
+`eval_relay_sta.py`: relay failure rate evaluation for STA agents <br>
+`eval_relay.py`: relay failure rate evaluation for regular agents <br>
+`train_procgen.py`: training script for regular PPO agents on procgen environments <br>
+`train_sta.py`: training script for STA PPO agents on procgen environments 
 
 **example**
 ```
@@ -75,13 +75,17 @@ i should probably remove some of the hardcodes in the scripts
     * ram memory is a current issue as the states are large numpy arrays and the STA set grows considerably large
 
 ## to do
+* 
 * evaluate same agent and relay failure rates for PPO leaper and PPO ninja agents
 * evaluate returns for PPO leaper and PPO ninja agents
 * reevaluate the same agent and relay failure rates for PPO heist agents using redefined success
 * reevaluate returns for PPO heist agents
 * evaluate same agent and relay failures rates for regular PPO and STA PPO starpilot agents
 * evaluate returns for regular PPO and STA PPO starpilot agents
+* soft actor critic?
 
 
 ## finished
 * 4 regular agents for PPO jumper, PPO heist, PPO ninja, PPO leaper
+* same agent and relay evaluations for regular PPO jumper agents
+* returns for regular PPO jumper agents
