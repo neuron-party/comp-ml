@@ -1,14 +1,17 @@
-
-* a faster way to evaluate these metrics would be to terminate the environment after 500 steps instead of the default 1000 
-
-
-
-
+# Metrics
 
 ### sta metrics:
-![sta vs regular relay failures](docs/sta_vs_regular_relay_jumper.png)
+![sta vs regular relay failures](../docs/sta_vs_regular_relay_jumper.png)
 
-### same agent vs relay failure rates
-![same agent vs relay failures](docs/relay_metrics.png)
-![training env returns](docs/train_test_returns_new.png)
-![testing env returns](docs/train_test_returns_averaged_new.png)
+
+### to add:
+* average returns for regular ppo jumper agents
+* average returns for sta ppo jumper agents
+* average returns for regular ppo heist agents
+* average returns for sta ppo heist agents
+* relay failure/generalization for regular ppo heist agents (redefined)
+* same agent failure/generalization for regular ppo heist agents (redefined)
+
+
+##### notes to self:
+* could speed up relay/same agent failure evaluation by setting the environment to terminate after 500 steps
