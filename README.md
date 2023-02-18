@@ -75,7 +75,8 @@ i should probably remove some of the hardcodes in the scripts
     * ram memory is a current issue as the states are large numpy arrays and the STA set grows considerably large
 
 ## to do
-* 
+* finish making changes to STA and rerun jumper (only have 1 STA jumper agent and 1 STA3 jumper agent)
+    * make sure it stops randomly crashing
 * evaluate same agent and relay failure rates for PPO leaper and PPO ninja agents
 * evaluate returns for PPO leaper and PPO ninja agents
 * reevaluate the same agent and relay failure rates for PPO heist agents using redefined success
@@ -86,6 +87,22 @@ i should probably remove some of the hardcodes in the scripts
 
 
 ## finished
-* 4 regular agents for PPO jumper, PPO heist, PPO ninja, PPO leaper
+* finished training 4 regular agents for PPO jumper, PPO heist, PPO ninja, PPO leaper
 * same agent and relay evaluations for regular PPO jumper agents
 * returns for regular PPO jumper agents
+
+## conda
+```
+# creating an env
+conda create --name procgen python=3.8
+
+# activating the env
+conda activate procgen
+
+# installing packages
+conda install numpy matplotlib pandas scipy 
+conda install jupyterlab
+pip install gym==0.22.0
+pip install procgen
+```
+**torch**: https://pytorch.org/get-started/locally/
