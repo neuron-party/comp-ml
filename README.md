@@ -6,7 +6,8 @@
 `eval_relay_sta.py`: relay failure rate evaluation for STA agents <br>
 `eval_relay.py`: relay failure rate evaluation for regular agents <br>
 `train_procgen.py`: training script for regular PPO agents on procgen environments <br>
-`train_sta.py`: training script for STA PPO agents on procgen environments 
+`train_sta.py`: training script for STA PPO agents on procgen environments <br>
+`train_sta_me_c.py`: training script for memory efficient STA algorithm for PPO agents on procgen environments
 
 **example**
 ```
