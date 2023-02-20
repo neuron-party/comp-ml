@@ -91,12 +91,16 @@ def main(args):
                         failures.append(0)
                         tracked = True
 
-                if t < 500 and valid_trajectory and sum_reward == 0:
+                if t < 500 and valid_trajectory:
                     valid_trajectory = False
                     failures.append(1)
                     
-                elif t < 500 and valid_trajectory and sum_reward == 10:
-                    failures.append(0)
+#             if t < 500 and valid_trajectory and sum_reward == 0:
+#                 valid_trajectory = False
+#                 failures.append(1)
+                
+#             elif t < 500 and valid_trajectory and sum_reward == 10:
+#                 failures.append(0)
 
                 if verbose: # why does this throw an error for starpilot...
                     print(f'Iteration: {idx}, Epochs: {len(failures)}, Time Step: {t}, Outcome: {failures[-1]}, Failure Rate: {sum(failures) / len(failures)}')

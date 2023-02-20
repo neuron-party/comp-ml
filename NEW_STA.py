@@ -6,26 +6,16 @@ import numpy as np
 from collections import deque
 
 
-# ISSUES TO FIX
-# All current STA algorithms 
-class STAC2: # for continuous envs like starpilot where we don't need an upperbound
+
+# trying to fix the memory consumption issue here
+
+
+class ProcgenMemoryEfficientSTA: # for continuous envs like starpilot where we don't need an upperbound
     def __init__(self, num_envs, num_samples, future_steps_num, best_threshold):
         '''
-        self.vectorized_checkpoints: list of num_envs lists
-            * each inner list contains checkpoints (qualified states for STA) for that respective environment 
-            * each checkpoint is a list of format [cdata, state (np.array), future_return, old_return]
-                
-        For self.vectorized_checkpoints
-            * the first index should access the corresponding env 
-            * the second index corresponds to the checkpoint
-            
-        CHANGES TO MAKE:
-            * change best threshold to 1 number
-                * just add the average returns whenever any environment ends instead of calling it after 256 time steps (for PPO), makes it easier to track
-                * prob just add an extra function for this
-            * change set to 1 list
-            
-        checkpoint entry: [cdata, state, future_return, old_return, accumulated_reward, episode_length]
+        checkpoints:
+            each checkpoint is [cdata, future_return, old_return, accumulated_reward, episode length]
+            each entry in trajectory is: [vectorized cdata, vectorized accumulated rewards, vectorized dones, vectorized episode lengths]
         '''  
         # new update_set parameters
         self.num_envs = num_envs
@@ -50,7 +40,7 @@ class STAC2: # for continuous envs like starpilot where we don't need an upperbo
             If we store time step rewards and accumulate them in this function, we can't trace back states that started in a previous trajectory list
             Instead we can store accumulated rewards which should work
             
-            i.e each trajectory entry will be [vectorized_cdata, vectorized_state, vectorized_accumulated_reward, vectorized_done, vectorized_episode_length] 
+            i.e each trajectory entry will be [vectorized_cdata, vectorized_accumulated_reward, vectorized_done, vectorized_episode_length] 
             where the dones signify a terminal state
         '''
         assert len(old_ids) == self.num_envs
@@ -62,7 +52,7 @@ class STAC2: # for continuous envs like starpilot where we don't need an upperbo
             self.best_threshold = threshold
         
         usable_states = [[] for i in range(self.num_envs)]
-        vectorized_dones = [i[3] for i in trajectory]
+        vectorized_dones = [i[2] for i in trajectory]
         single_env_flattened_dones = [np.array(vectorized_dones)[:, i] for i in range(self.num_envs)] # [[env_1_dones], [env_2_dones],..., [env_n_dones]] where env_n_dones should be [256, ]
         
         for index, flattened_done in enumerate(single_env_flattened_dones):
@@ -77,10 +67,10 @@ class STAC2: # for continuous envs like starpilot where we don't need an upperbo
         for env_index, old_id in enumerate(old_ids):
             # make sure the starting state of this trajectory is still controllable, i.e replay of this state doesn't terminate after 50 steps
             if old_id >= 0 and usable_states[env_index][0] == 0: 
-                old_return = self.checkpoints[old_id][3]
-                new_future_return = trajectory[50][2][env_index] 
-                if self.checkpoints[old_id][2] < new_future_return:
-                    self.checkpoints[old_id][2] = new_future_return
+                old_return = self.checkpoints[old_id][2]
+                new_future_return = trajectory[50][1][env_index] 
+                if self.checkpoints[old_id][1] < new_future_return:
+                    self.checkpoints[old_id][1] = new_future_return
                 old_returns[env_index] = old_return
         
 
@@ -88,34 +78,35 @@ class STAC2: # for continuous envs like starpilot where we don't need an upperbo
         
         for env_index, indices in enumerate(sampled_usable_indices): # list of indices
             for timestep in indices: # iterating through single index at a time
-                future_return = trajectory[timestep + 50][2][env_index] - trajectory[timestep][2][env_index]
+                future_return = trajectory[timestep + 50][1][env_index] - trajectory[timestep][1][env_index]
                 average_future_return = future_return / self.future_steps_num
                 
                 # print(f'average_future_return: {average_future_return}')    
                 
                 if average_future_return >= threshold and average_future_return >= self.best_threshold and average_future_return != 0:
+                    
                     checkpoint = [
-                        trajectory[timestep][0][env_index], # single cdata entry - might need to turn back into a list later
-                        trajectory[timestep][1][env_index], # single state of shape [observation_shape]
+                        trajectory[timestep][0][env_index], # cdata
                         future_return,
                         old_returns[env_index],
-                        trajectory[timestep][2][env_index], # single accumulated reward
-                        trajectory[timestep][4][env_index]  # episode length
+                        trajectory[timestep][1][env_index], # accumulated reward
+                        trajectory[timestep][3][env_index]  # episode lengths
                     ]
+                    
                     # print('checkpoint added')
                     if len(self.checkpoints) < 20:
                         self.checkpoints.append(checkpoint)
                     else:
                         checkpoint_indices = random.sample(list(range(len(self.checkpoints))), 10)
                         lowest_checkpoint_index = checkpoint_indices.pop(0)
-                        lowest_future_return = self.checkpoints[lowest_checkpoint_index][2]
+                        lowest_future_return = self.checkpoints[lowest_checkpoint_index][1]
                         
                         for checkpoint_index in checkpoint_indices:
-                            if self.checkpoints[checkpoint_index][2] < lowest_future_return:
-                                lowest_future_return = self.checkpoints[checkpoint_index][2]
+                            if self.checkpoints[checkpoint_index][1] < lowest_future_return:
+                                lowest_future_return = self.checkpoints[checkpoint_index][1]
                                 lowest_checkpoint_index = checkpoint_index
                         
-                        if self.checkpoints[lowest_checkpoint_index][2] >= self.best_threshold:
+                        if self.checkpoints[lowest_checkpoint_index][1] >= self.best_threshold:
                             self.checkpoints.append(checkpoint)
                         else:
                             self.checkpoints[lowest_checkpoint_index] = checkpoint
@@ -152,31 +143,17 @@ class STAC2: # for continuous envs like starpilot where we don't need an upperbo
             as a new checkpoint. If there is more than one valid candidate in the same env, then apply the Q-value evaluation to choose
             as usual in the unvectorized case.
         '''
-        valid_candidates = deque([-1 for i in range(self.num_envs)], maxlen=self.num_envs)
-        q_values = deque([-1 for i in range(self.num_envs)], maxlen=self.num_envs)
+        # valid_candidates = deque([-1 for i in range(self.num_envs)], maxlen=self.num_envs)
+        # q_values = deque([-1 for i in range(self.num_envs)], maxlen=self.num_envs)
+        valid_candidates = []
         
         for i in range(self.num_samples):
             for i in range(self.num_envs):
                 random_idx = random.randint(0, len(self.checkpoints) - 1)
-                avg_future_return = self.checkpoints[random_idx][2] / self.future_steps_num
+                avg_future_return = self.checkpoints[random_idx][1] / self.future_steps_num
                 if avg_future_return > self.best_threshold:
-                    with torch.no_grad():
-                        state = self.checkpoints[random_idx][1]
-                        state = torch.tensor(state, device=agent.device, dtype=torch.float32)
-                        state = state.unsqueeze(0) # [h, w, c] -> [1, h, w, c]
-                        # import pdb; pdb.set_trace()
-                        _, score = agent.model(state)
-                        score = score.squeeze(0).detach().cpu().numpy()
-                    if all(element != -1 for element in valid_candidates): # all valid candidates spots have been filled and now need to filter using the q value
-                        replacement_idx = np.argmax(q_values)
-                        if score < q_values[replacement_idx]:
-                            q_values[replacement_idx] = score
-                            valid_candidates[replacement_idx] = random_idx
-                    else:
-                        valid_candidates.append(random_idx)
-                        q_values.append(score)
-        # import pdb; pdb.set_trace()
-        assert len(valid_candidates) == len(q_values) == self.num_envs
+                    valid_candidates.append(random_idx)
+        
         return valid_candidates
 
 

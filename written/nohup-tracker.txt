@@ -17,3 +17,6 @@
 - nohup601.out: sta training loop outputs for ppo_starpilot_sta_2
 - nohup602.out: sta training loop outputs for ppo_starpilot_sta_3
 - nohup603.out: sta training loop outputs for ppo_starpilot_sta_4
+
+- nohup700.out: same agent failure for starpilot
+- nohup701.out: relay failures for starpilot
