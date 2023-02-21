@@ -61,8 +61,6 @@ class ProcgenMemoryEfficientSTA: # for continuous envs like starpilot where we d
                 if not termination: 
                     usable_states[index].append(timestep)
         
-        # print(f'usable states: {usable_states}')
-        
         old_returns = np.zeros((self.num_envs, ))
         for env_index, old_id in enumerate(old_ids):
             # make sure the starting state of this trajectory is still controllable, i.e replay of this state doesn't terminate after 50 steps
@@ -142,6 +140,11 @@ class ProcgenMemoryEfficientSTA: # for continuous envs like starpilot where we d
             Iterate through the Nc sampled checkpoints as usual, but bundle all the valid candidates among the is_qualified states
             as a new checkpoint. If there is more than one valid candidate in the same env, then apply the Q-value evaluation to choose
             as usual in the unvectorized case.
+            
+        Memory Efficiency:
+            If we will never return checkpoint states with a future return less than self.best_threshold, can we just remove it from the checkpoint list to save memory?
+            There is a very small chance that the agent will encounter a similar state again and return a higher future reward but this possibility is very very small 
+            and may be worth ignoring
         '''
         # valid_candidates = deque([-1 for i in range(self.num_envs)], maxlen=self.num_envs)
         # q_values = deque([-1 for i in range(self.num_envs)], maxlen=self.num_envs)

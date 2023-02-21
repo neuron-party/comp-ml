@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from models.utils import *
 
 
 class ResidualBlock(nn.Module):
@@ -102,7 +103,37 @@ class ImpalaCNN(nn.Module): # procgen and atari
     def load_from_file(self, model_path):
         self.load_state_dict(torch.load(model_path))
         
+        
+        
+class ContinuousActionMLP(nn.Module):
+    def __init__(self, observation_space, action_space):
+        super().__init__()
+        self.critic = nn.Sequential(
+            layer_init(nn.Linear(in_features=observation_space, out_features=256)),
+            nn.Tanh(),
+            layer_init(nn.Linear(in_features=256, out_features=256)),
+            nn.Tanh(),
+            layer_init(nn.Linear(in_features=256, out_features=1), std=1.0)
+        )
+        self.actor_mean = nn.Sequential(
+            layer_init(nn.Linear(in_features=observation_space, out_features=256)),
+            nn.Tanh(),
+            layer_init(nn.Linear(in_features=256, out_features=256)),
+            nn.Tanh(),
+            layer_init(nn.Linear(in_features=256, out_features=action_space), std=0.01)
+        )
+        self.actor_logstd = nn.Parameter(torch.zeros(1, action_space))
+        
+    def forward(self, x):
+        action_mean = self.actor_mean(x) # [b, action_space]
+        action_logstd = self.actor_logstd.expand_as(action_mean) # [b, action_space]
+        action_std = torch.exp(action_logstd)
+        pi = torch.distributions.Normal(action_mean, action_std)
+        value = self.critic(x) # [b, 1]
+        return pi, value
+        
 
+        
 class MLP(nn.Module):
     def __init__(self, observation_space, action_space):
         super().__init__()
@@ -128,6 +159,7 @@ class MLP(nn.Module):
         return pi, value
     
 
+    
 class MLP2(nn.Module): # for classic control
     def __init__(self, observation_space, action_space):
         super().__init__()

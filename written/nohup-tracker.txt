@@ -13,6 +13,7 @@
 - nohup200.out: relay failure/generalization for for STA ppo jumper agents
 - nohup201.out: relay failure/generalization for STA3 ppo jumper agents
 
+# note: all sta training sessions crashed for ppo starpilot
 - nohup600.out: sta training loop outputs for ppo_starpilot_sta_1
 - nohup601.out: sta training loop outputs for ppo_starpilot_sta_2
 - nohup602.out: sta training loop outputs for ppo_starpilot_sta_3
@@ -20,3 +21,5 @@
 
 - nohup700.out: same agent failure for starpilot
 - nohup701.out: relay failures for starpilot
+
+- nohup800.out: revised memory-efficient sta training loop outputs for starpilot
