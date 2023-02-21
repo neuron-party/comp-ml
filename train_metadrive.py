@@ -19,14 +19,16 @@ def parse_args():
     
     # agent args
     # default parameters for PPO can be found on page 9 of https://arxiv.org/pdf/2109.12674.pdf
+    # tweaked some of the default params since it wasnt performing well
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--lr', type=float, default=5e-4)
     parser.add_argument('--epsilon', type=float, default=0.2)
     parser.add_argument('--vf-clip', type=float, default=0.2)
     parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--num-steps', type=int, default=256)
-    parser.add_argument('--num-epochs', type=int, default=20)
-    parser.add_argument('--num-batches', type=int, default=128)
+    # parser.add_argument('--num-epochs', type=int, default=20) # why so many optimization epochs? procgen uses 3, also too many epochs overfits to the most recent sample?
+    parser.add_argument('--num-epochs', type=int, default=5)
+    parser.add_argument('--num-batches', type=int, default=64)
     parser.add_argument('--lambd', type=float, default=0.95)
     parser.add_argument('--c1', type=float, default=0.5)
     parser.add_argument('--c2', type=float, default=0.01)
