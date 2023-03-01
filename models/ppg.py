@@ -103,7 +103,8 @@ class PPG:
         self.auxiliary_states[:, start:end] = self.states.detach().cpu().numpy().copy()
         self.auxiliary_value_targets[:, start:end] = self.value_targets.detach().cpu().numpy().copy()
         self.n_pi_index = (self.n_pi_index + 1) % self.n_pi
-            
+        
+        # is there a way to check if all of the buffer has been filled correctly? (since the training loop is just 2 nested for loops, feels kinda unreliable)
             
     def policy_phase(self, next_state):
         self._make_policy_dataset(next_state)
