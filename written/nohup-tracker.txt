@@ -23,3 +23,11 @@
 - nohup701.out: relay failures for starpilot
 
 - nohup800.out: revised memory-efficient sta training loop outputs for starpilot
+
+- nohup1000.out: individual level evaluation for ppo_jumper_1
+- nohup1001.out: individual level evaluation for ppo_jumper_2
+- nohup1002.out: individual level evaluation for ppo_jumper_3
+- nohup1003.out: individual level evaluation for ppo_jumper_4
+- nohup1004.out: individual level evaluation for ppg_jumper_1
+- nohup1005.out: individual level evaluation for ppg_jumper_2
+- nohup1006.out: individual level evaluation for ppg_jumper_3
