@@ -108,7 +108,7 @@ def main(args):
                     failures.append(1)
 
                 elif t < 500 and valid_trajectory and sum_reward == 10:
-                failures.append(0)
+                    failures.append(0)
 
             # continuous type of environments that can be played forever; if the agent dies within [400, 500], then failure
             elif args.environment_type == 'continuous':
